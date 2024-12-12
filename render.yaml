@@ -1,5 +1,4 @@
 services:
   - type: web
-    name: byggassistent  # Or whatever your service name is
-    buildCommand: "./build.sh" 
-    # ... rest of your render.yaml configuration ...
+    name: byggassistent
+    buildCommand: "./build.sh"
