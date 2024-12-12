@@ -71,6 +71,32 @@ HTML_TEMPLATE = """
         .response h3 {
             margin-top: 0;
         }
+        /* Chat container */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        /* User bubble */
+        .user-bubble {
+            background-color: #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            align-self: flex-end;
+        }
+        /* Bot bubble */
+        .bot-bubble {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            align-self: flex-start;
+        }
     </style>
 </head>
 <body>
@@ -78,19 +104,25 @@ HTML_TEMPLATE = """
         <h1>Byggassistent</h1>
     </header>
     <main>
-        <p>Skriv inn spørsmålet ditt om TEK17, PBL eller andre standarder:</p>
+        <p>Skriv inn spørsmålet ditt om TEK17:</p>
+        <div class="chat-container" id="chat-container">
+            </div>
         <form id="queryForm">
             <input type="text" id="query" name="query" placeholder="F.eks. Hva er krav til rømningsvei?" required>
             <button type="submit">Spør</button>
         </form>
-        <div id="response" class="response" style="display: none;"></div>
     </main>
     <script>
         document.getElementById("queryForm").addEventListener("submit", async function(event) {
             event.preventDefault();
             const query = document.getElementById("query").value;
-            const responseDiv = document.getElementById("response");
-            responseDiv.style.display = "none";
+            const chatContainer = document.getElementById("chat-container");
+
+            // Display user's question
+            const userBubble = document.createElement("div");
+            userBubble.classList.add("user-bubble");
+            userBubble.textContent = query;
+            chatContainer.appendChild(userBubble);
 
             try {
                 const response = await fetch("/ask", {
@@ -103,20 +135,25 @@ HTML_TEMPLATE = """
 
                 if (response.ok) {
                     const data = await response.json();
-                    responseDiv.style.display = "block";
 
-                    let formattedResponse = "<h3>Svar:</h3>";
-                    for (const [reference, content] of Object.entries(data.categorized)) {
-                        formattedResponse += `<p><strong>${reference}:</strong> ${content}</p>`;
-                    }
-                    responseDiv.innerHTML = formattedResponse;
+                    // Display bot's response
+                    const botBubble = document.createElement("div");
+                    botBubble.classList.add("bot-bubble");
+                    botBubble.innerHTML = `<h3>Svar:</h3><p><strong>Oppsummering:</strong> ${data.summary}</p><p><strong>Referanser:</strong> ${data.references}</p>`;
+                    chatContainer.appendChild(botBubble);
                 } else {
-                    responseDiv.style.display = "block";
-                    responseDiv.innerHTML = `<p>Feil: ${response.status}</p>`;
+                    // Display error message
+                    const botBubble = document.createElement("div");
+                    botBubble.classList.add("bot-bubble");
+                    botBubble.textContent = `Feil: ${response.status}`;
+                    chatContainer.appendChild(botBubble);
                 }
             } catch (error) {
-                responseDiv.style.display = "block";
-                responseDiv.innerHTML = `<p>Feil: ${error.message}</p>`;
+                // Display error message
+                const botBubble = document.createElement("div");
+                botBubble.classList.add("bot-bubble");
+                botBubble.textContent = `Feil: ${error.message}`;
+                chatContainer.appendChild(botBubble);
             }
         });
     </script>
@@ -124,25 +161,31 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# Fuzzy search and categorize function
-def search_and_categorize(query, database):
-    results = {}
+# Fuzzy search and summarize function
+def search_and_summarize(query, database):
+    results = []
     for entry in database:
         try:
             score = process.extractOne(query, [entry["content"]])
             if score and score[1] > 70:  # Match threshold
-                reference = f"{entry.get('source', 'Ukjent')} §{entry.get('paragraph', 'Ukjent')}"
-                if reference not in results:
-                    results[reference] = ""
-                results[reference] += entry["content"][:200] + "...\n"
+                results.append(entry)
         except UnicodeEncodeError as e:
             logging.error(f"Encoding error: {e}")
             continue
     if not results:
         logging.info("No results found.")
-        return {"categorized": {"Ingen": "Ingen relevante avsnitt ble funnet."}}
+        return {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
 
-    return {"categorized": results}
+    summary = ""
+    references = []
+    for result in results[:3]:  # Limit to the top 3 results
+        try:
+            summary += f"- {result['content'][:200].encode('utf-8', 'ignore').decode('utf-8')}...\n\n"
+            references.append(f"Side {result['page']}")
+        except UnicodeEncodeError as e:
+            logging.error(f"Encoding error while summarizing: {e}")
+            continue
+    return {"summary": summary.strip(), "references": ", ".join(references)}
 
 # Route for API requests
 @app.route('/ask', methods=["POST"])
@@ -156,7 +199,7 @@ def ask():
                 status=400
             )
 
-        response = search_and_categorize(query, database)
+        response = search_and_summarize(query, database)
         return Response(
             json.dumps(response, ensure_ascii=False),
             content_type="application/json"
