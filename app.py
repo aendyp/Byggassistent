@@ -180,7 +180,15 @@ def search_and_summarize(query, database):
     references = []
     for result in results[:3]:  # Limit to the top 3 results
         try:
-            summary += f"- {result['content'][:200].encode('utf-8', 'ignore').decode('utf-8')}...\n\n"
+            # Split content into paragraphs
+            paragraphs = result['content'].split('\n')
+            
+            summary += f"Side {result['page']}:\n"  # Add page number before content
+            for paragraph in paragraphs:
+                paragraph = paragraph.strip()
+                if paragraph:  # Check if the paragraph is not empty
+                    summary += f"{paragraph}\n"  # Add each paragraph to summary
+            summary += "\n"  # Add an extra newline between entries
             references.append(f"Side {result['page']}")
         except UnicodeEncodeError as e:
             logging.error(f"Encoding error while summarizing: {e}")
