@@ -14,10 +14,12 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Load the spaCy Norwegian language model with the correct path
+# Set the spaCy data path
 model_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(model_dir, "nb_core_news_sm")
-nlp = spacy.load(model_path)
+spacy.util.set_data_path(model_dir)
+
+# Load the spaCy Norwegian language model
+nlp = spacy.load("nb_core_news_sm")
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
