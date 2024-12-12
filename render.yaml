@@ -2,3 +2,4 @@ services:
   - type: web
     name: byggassistent
     buildCommand: "./build.sh"
+    runtime: "python3.10"  # Or another compatible version
