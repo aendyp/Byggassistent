@@ -78,7 +78,7 @@ HTML_TEMPLATE = """
         <h1>Byggassistent</h1>
     </header>
     <main>
-        <p>Skriv inn spørsmålet ditt om TEK17:</p>
+        <p>Skriv inn spørsmålet ditt om TEK17, PBL eller andre standarder:</p>
         <form id="queryForm">
             <input type="text" id="query" name="query" placeholder="F.eks. Hva er krav til rømningsvei?" required>
             <button type="submit">Spør</button>
@@ -104,7 +104,12 @@ HTML_TEMPLATE = """
                 if (response.ok) {
                     const data = await response.json();
                     responseDiv.style.display = "block";
-                    responseDiv.innerHTML = `<h3>Svar:</h3><p><strong>Oppsummering:</strong> ${data.summary}</p><p><strong>Referanser:</strong> ${data.references}</p>`;
+
+                    let formattedResponse = "<h3>Svar:</h3>";
+                    for (const [reference, content] of Object.entries(data.categorized)) {
+                        formattedResponse += `<p><strong>${reference}:</strong> ${content}</p>`;
+                    }
+                    responseDiv.innerHTML = formattedResponse;
                 } else {
                     responseDiv.style.display = "block";
                     responseDiv.innerHTML = `<p>Feil: ${response.status}</p>`;
@@ -119,31 +124,25 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# Fuzzy search and summarize function
-def search_and_summarize(query, database):
-    results = []
+# Fuzzy search and categorize function
+def search_and_categorize(query, database):
+    results = {}
     for entry in database:
         try:
             score = process.extractOne(query, [entry["content"]])
             if score and score[1] > 70:  # Match threshold
-                results.append(entry)
+                reference = f"{entry.get('source', 'Ukjent')} §{entry.get('paragraph', 'Ukjent')}"
+                if reference not in results:
+                    results[reference] = ""
+                results[reference] += entry["content"][:200] + "...\n"
         except UnicodeEncodeError as e:
             logging.error(f"Encoding error: {e}")
             continue
     if not results:
         logging.info("No results found.")
-        return {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
+        return {"categorized": {"Ingen": "Ingen relevante avsnitt ble funnet."}}
 
-    summary = "Oppsummering:\n\n"
-    references = []
-    for result in results[:3]:  # Limit to the top 3 results
-        try:
-            summary += f"- {result['content'][:200].encode('utf-8', 'ignore').decode('utf-8')}...\n\n"
-            references.append(f"Side {result['page']}")
-        except UnicodeEncodeError as e:
-            logging.error(f"Encoding error while summarizing: {e}")
-            continue
-    return {"summary": summary.strip(), "references": ", ".join(references)}
+    return {"categorized": results}
 
 # Route for API requests
 @app.route('/ask', methods=["POST"])
@@ -157,7 +156,7 @@ def ask():
                 status=400
             )
 
-        response = search_and_summarize(query, database)
+        response = search_and_categorize(query, database)
         return Response(
             json.dumps(response, ensure_ascii=False),
             content_type="application/json"
