@@ -1,5 +1,6 @@
 from flask import Flask, request, Response, send_from_directory
 import json
+from rapidfuzz import process
 
 app = Flask(__name__)
 
@@ -7,10 +8,12 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
+# Fuzzy search and summarize function
 def search_and_summarize(query, database):
     results = []
     for entry in database:
-        if query.lower() in entry["content"].lower():
+        score = process.extractOne(query, [entry["content"]])
+        if score and score[1] > 70:  # Match threshold
             results.append(entry)
     if not results:
         return {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
@@ -22,6 +25,7 @@ def search_and_summarize(query, database):
         references.append(f"Side {result['page']}")
     return {"summary": summary.strip(), "references": ", ".join(references)}
 
+# Route for API requests
 @app.route('/ask', methods=["POST"])
 def ask():
     query = request.json.get("query")
@@ -38,6 +42,7 @@ def ask():
         content_type="application/json"
     )
 
+# Route to serve the web interface
 @app.route('/')
 def home():
     return send_from_directory(".", "index.html")
