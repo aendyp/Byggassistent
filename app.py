@@ -3,6 +3,7 @@ import json
 from rapidfuzz import fuzz
 import spacy
 import logging
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -13,8 +14,9 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Load the spaCy Norwegian language model
-nlp = spacy.load("nb_core_news_sm")
+# Load the spaCy Norwegian language model with full path
+model_path = os.path.join(os.path.dirname(__file__), 'nb_core_news_sm')
+nlp = spacy.load(model_path)
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
