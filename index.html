@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Byggassistent</title>
+</head>
+<body>
+    <h1>Welcome to Byggassistent!</h1>
+    <p>Ask your question about TEK17:</p>
+    <form id="queryForm">
+        <input type="text" id="query" name="query" placeholder="Type your question here" required>
+        <button type="submit">Ask</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById("queryForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            const query = document.getElementById("query").value;
+            const responseDiv = document.getElementById("response");
+            
+            try {
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ query })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    responseDiv.innerHTML = `<h3>Response:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    responseDiv.innerHTML = `<p>Error: ${response.status}</p>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
