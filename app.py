@@ -1,6 +1,7 @@
 from flask import Flask, request, Response, render_template_string
 import json
-from rapidfuzz import process
+from rapidfuzz import fuzz
+import spacy
 import logging
 
 # Set up logging
@@ -11,6 +12,9 @@ app = Flask(__name__)
 # Load the TEK17 database
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
+
+# Load the spaCy Norwegian language model
+nlp = spacy.load("nb_core_news_sm")
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
@@ -161,39 +165,37 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# Fuzzy search and summarize function
-def search_and_summarize(query, database):
-    results = []
-    for entry in database:
-        try:
-            score = process.extractOne(query, [entry["content"]])
-            if score and score[1] > 70:  # Match threshold
-                results.append(entry)
-        except UnicodeEncodeError as e:
-            logging.error(f"Encoding error: {e}")
-            continue
-    if not results:
-        logging.info("No results found.")
-        return {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
+def forbedret_sok(sporsmal, database):
+    doc = nlp(sporsmal)
+    nokkelord = [token.lemma_ for token in doc if not token.is_stop]
 
-    summary = ""
-    references = []
-    for result in results[:3]:  # Limit to the top 3 results
-        try:
-            # Split content into paragraphs
-            paragraphs = result['content'].split('\n')
-            
-            summary += f"Side {result['page']}:\n"  # Add page number before content
-            for paragraph in paragraphs:
-                paragraph = paragraph.strip()
-                if paragraph:  # Check if the paragraph is not empty
-                    summary += f"{paragraph}\n"  # Add each paragraph to summary
-            summary += "\n"  # Add an extra newline between entries
-            references.append(f"Side {result['page']}")
-        except UnicodeEncodeError as e:
-            logging.error(f"Encoding error while summarizing: {e}")
-            continue
-    return {"summary": summary.strip(), "references": ", ".join(references)}
+    resultater = []
+    for oppføring in database:
+        innhold = oppføring.get("content")
+        score = fuzz.partial_ratio(sporsmal.lower(), innhold.lower())
+        if score > 70:
+            resultater.append((oppføring, score))
+
+    # Sorter resultater basert på score
+    resultater = sorted(resultater, key=lambda x: x[1], reverse=True)
+
+    return resultater
+
+def formater_svar(resultater):
+    svar = ""
+    referanser = []
+    for oppføring, score in resultater[:3]:
+        # Del innhold inn i avsnitt
+        avsnitt = oppføring['content'].split('\n')
+
+        svar += f"Side {oppføring['page']}:\n"
+        for avsnitt in avsnitt:
+            avsnitt = avsnitt.strip()
+            if avsnitt:
+                svar += f"{avsnitt}\n"
+        svar += "\n"
+        referanser.append(f"Side {oppføring['page']}")
+    return svar.strip(), ", ".join(referanser)
 
 # Route for API requests
 @app.route('/ask', methods=["POST"])
@@ -207,7 +209,13 @@ def ask():
                 status=400
             )
 
-        response = search_and_summarize(query, database)
+        resultater = forbedret_sok(query, database)
+        if resultater:
+            svar, referanser = formater_svar(resultater)
+            response = {"summary": svar, "references": referanser}
+        else:
+            response = {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
+
         return Response(
             json.dumps(response, ensure_ascii=False),
             content_type="application/json"
