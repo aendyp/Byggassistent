@@ -14,8 +14,9 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Load the spaCy Norwegian language model with full path
-model_path = os.path.join(os.path.dirname(__file__), 'nb_core_news_sm')
+# Load the spaCy Norwegian language model with the correct path
+model_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(model_dir, "nb_core_news_sm")
 nlp = spacy.load(model_path)
 
 # HTML template for the web interface (Norwegian version)
@@ -66,16 +67,6 @@ HTML_TEMPLATE = """
         }
         button:hover {
             background: #0056b3;
-        }
-        .response {
-            margin-top: 2rem;
-            padding: 1rem;
-            background: #f4f4f4;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .response h3 {
-            margin-top: 0;
         }
         /* Chat container */
         .chat-container {
