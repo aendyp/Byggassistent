@@ -6,13 +6,17 @@ source venv/bin/activate
 # Installer nødvendige Python-pakker
 pip install -r requirements.txt
 
-# Last ned spaCy-modellen for norsk til en spesifikk lokal mappe
-python -m spacy download nb_core_news_sm --direct-download
+# Last ned spaCy-modellen for norsk og spesifiser en plassering
+python -m spacy download nb_core_news_sm
 
-# Flytt modellen til en bestemt mappe i prosjektet
+# Verifiser at modellen er lastet ned og tilgjengelig
+echo "Verifiserer at modellen er lastet ned..."
+ls /usr/local/lib/python3.10/dist-packages/spacy/data/  # Sjekk hvor modellen er lastet ned
+
+# Hvis modellen er funnet, flytt den til en annen katalog i prosjektet
+echo "Flytter modellen til prosjektkatalogen..."
 mkdir -p /app/models/nb_core_news_sm
 mv /usr/local/lib/python3.10/dist-packages/spacy/data/nb_core_news_sm /app/models/nb_core_news_sm
 
-# Sjekk at modellen er lastet ned og flyttet korrekt
-echo "Verifiserer at modellen er flyttet..."
+# Sjekk om modellen er flyttet til prosjektmappen
 ls /app/models/nb_core_news_sm
