@@ -6,5 +6,5 @@ source venv/bin/activate
 # Installer nødvendige Python-pakker
 pip install -r requirements.txt
 
-# Last ned spaCy-modellen for norsk til en spesifikk lokal mappe
+# Last ned spaCy-modellen for norsk
 python -m spacy download nb_core_news_sm --direct-download
