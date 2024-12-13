@@ -5,7 +5,7 @@ import spacy
 import logging
 import os
 
-# Set up logging
+# Sett opp logging
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
@@ -14,8 +14,11 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Få stien fra miljøvariabelen, eller bruk standardmodellen
+# Hent model-stien fra miljøvariabelen, eller bruk standardmodellen
 model_path = os.getenv("SPACY_MODEL_PATH", "nb_core_news_sm")
+
+# Logg hvilken modellsti som brukes
+logging.info(f"Prøver å laste modellen fra: {model_path}")
 
 # Last inn modellen
 try:
@@ -23,7 +26,7 @@ try:
     logging.info(f"Bruker spaCy-modellen fra sti: {model_path}")
 except IOError as e:
     logging.error(f"Feil ved lasting av spaCy-modellen fra {model_path}: {e}")
-    raise e
+    raise e  # Raise error if model cannot be loaded
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
