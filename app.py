@@ -131,15 +131,21 @@ def query_gpt(prompt):
             messages=[
                 {"role": "system", "content": "Du er en hjelpsom assistent for byggrelaterte spørsmål."},
                 {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.7
+            ]
         )
-        logging.info("Svar mottatt fra GPT.")
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        logging.error(f"Feil ved forespørsel til GPT: {e}")
+        # Sjekk om responsen har forventet struktur
+        if response and "choices" in response and len(response["choices"]) > 0:
+            return response["choices"][0]["message"]["content"]
+        else:
+            logging.error("Uventet respons fra GPT.")
+            return "GPT returnerte ikke en gyldig respons."
+    except openai.error.OpenAIError as e:
+        logging.error(f"OpenAI feil: {e}")
         return "En feil oppstod ved forespørselen til GPT."
+    except Exception as e:
+        logging.error(f"Ukjent feil: {e}")
+        return "En ukjent feil oppstod."
+
 
 # Route for API requests
 @app.route('/ask', methods=["POST"])
