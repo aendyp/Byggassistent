@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Sett modellens sti til den nye plasseringen
+# Bruk den spesifikke stien der modellen er plassert
 model_path = "/app/models/nb_core_news_sm"
 
 # Logg hvilken modellsti som brukes
