@@ -122,15 +122,20 @@ HTML_TEMPLATE = """
 # Function to query OpenAI GPT
 def query_gpt(prompt):
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
+        logging.info(f"Sender forespørsel til GPT med prompt: {prompt}")
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Endre modellen her om nødvendig
+            messages=[
+                {"role": "system", "content": "Du er en hjelpsom assistent for byggrelaterte spørsmål."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=500,
             temperature=0.7
         )
-        return response.choices[0].text.strip()
+        logging.info("Svar mottatt fra GPT.")
+        return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        logging.error(f"Error querying GPT: {e}")
+        logging.error(f"Feil ved forespørsel til GPT: {e}")
         return "En feil oppstod ved forespørselen til GPT."
 
 # Route for API requests
