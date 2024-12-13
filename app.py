@@ -1,6 +1,7 @@
 from flask import Flask, request, Response, render_template_string
 import os
 import openai
+import json  # Dette er nå lagt til
 import logging
 
 # Set up logging
