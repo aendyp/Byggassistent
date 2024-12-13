@@ -14,12 +14,16 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Set the spaCy data path
-model_dir = os.path.dirname(os.path.abspath(__file__))
-spacy.util.set_data_path(model_dir)
+# Get the spaCy model path from environment variable, default to the model name
+model_path = os.getenv("SPACY_MODEL_PATH", "nb_core_news_sm")
 
-# Load the spaCy Norwegian language model
-nlp = spacy.load("nb_core_news_sm")
+# Try to load the spaCy Norwegian language model from the specified path
+try:
+    nlp = spacy.load(model_path)
+    logging.info(f"Bruker spaCy-modellen fra sti: {model_path}")
+except IOError as e:
+    logging.error(f"Feil ved lasting av spaCy-modellen fra {model_path}: {e}")
+    raise e  # Raise error if model cannot be loaded
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
@@ -188,45 +192,27 @@ def formater_svar(resultater):
             avsnitt = avsnitt.strip()
             if avsnitt:
                 svar += f"{avsnitt}\n"
-        svar += "\n"
-        referanser.append(f"Side {oppføring['page']}")
-    return svar.strip(), ", ".join(referanser)
 
-# Route for API requests
-@app.route('/ask', methods=["POST"])
-def ask():
-    try:
-        query = request.json.get("query")
-        if not query:
-            return Response(
-                json.dumps({"error": "Ingen forespørsel mottatt."}, ensure_ascii=False),
-                content_type="application/json",
-                status=400
-            )
+    return svar, referanser
 
-        resultater = forbedret_sok(query, database)
-        if resultater:
-            svar, referanser = formater_svar(resultater)
-            response = {"summary": svar, "references": referanser}
-        else:
-            response = {"summary": "Ingen relevante avsnitt ble funnet.", "references": "Ingen"}
-
-        return Response(
-            json.dumps(response, ensure_ascii=False),
-            content_type="application/json"
-        )
-    except Exception as e:
-        logging.error(f"Error processing request: {e}")
-        return Response(
-            json.dumps({"error": "En feil oppstod på serveren."}, ensure_ascii=False),
-            content_type="application/json",
-            status=500
-        )
-
-# Route to serve the web interface
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
 
+@app.route('/ask', methods=['POST'])
+def ask():
+    data = request.get_json()
+    query = data.get("query")
+
+    # Perform search in the database
+    resultater = forbedret_sok(query, database)
+    summary, references = formater_svar(resultater)
+
+    # Return the result as JSON
+    return Response(
+        json.dumps({"summary": summary, "references": references}),
+        mimetype="application/json"
+    )
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
