@@ -1,21 +1,15 @@
-from flask import Flask, request, Response, render_template_string
-import json
-from rapidfuzz import fuzz
 import spacy
-import logging
 import os
+import logging
+from flask import Flask, request, Response, render_template_string
 
 # Sett opp logging
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Load the TEK17 database
-with open("TEK17_database.json", "r", encoding="utf-8") as f:
-    database = json.load(f)
-
-# Hent model-stien fra miljøvariabelen, eller bruk standardmodellen
-model_path = os.getenv("SPACY_MODEL_PATH", "nb_core_news_sm")
+# Sett modellens sti til den nye plasseringen
+model_path = "/app/models/nb_core_news_sm"
 
 # Logg hvilken modellsti som brukes
 logging.info(f"Prøver å laste modellen fra: {model_path}")
