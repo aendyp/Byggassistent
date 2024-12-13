@@ -7,6 +7,6 @@ services:
     startCommand: python app.py
     envVars:
       - key: SPACY_MODEL_PATH
-        value: "nb_core_news_sm"
+        value: "nb_core_news_sm"  # Eller lokal sti hvis du vet hvor modellen er
     regions:
       - oregon
