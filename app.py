@@ -8,8 +8,8 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Load the TEK17 database
-with open("TEK17_database.json", "r", encoding="utf-8") as f:
+# Load the updated database
+with open("TEK17_and_PBL_complete.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
 # HTML template for the web interface (Norwegian version)
@@ -132,6 +132,8 @@ def search_and_categorize(query, database):
             score = process.extractOne(query, [entry["content"]])
             if score and score[1] > 70:  # Match threshold
                 reference = f"{entry.get('source', 'Ukjent')} §{entry.get('paragraph', 'Ukjent')}"
+                if entry["type"] == "guidance":
+                    reference += " (Veiledning)"
                 if reference not in results:
                     results[reference] = ""
                 results[reference] += entry["content"][:200] + "...\n"
