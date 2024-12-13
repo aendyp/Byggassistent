@@ -1,6 +1,6 @@
 from flask import Flask, request, Response, render_template_string
-import json
-from rapidfuzz import process
+import openai
+import os
 import logging
 
 # Set up logging
@@ -8,9 +8,8 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Load the updated database
-with open("TEK17_and_PBL_complete.json", "r", encoding="utf-8") as f:
-    database = json.load(f)
+# Configure OpenAI API key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
@@ -104,12 +103,7 @@ HTML_TEMPLATE = """
                 if (response.ok) {
                     const data = await response.json();
                     responseDiv.style.display = "block";
-
-                    let formattedResponse = "<h3>Svar:</h3>";
-                    for (const [reference, content] of Object.entries(data.categorized)) {
-                        formattedResponse += `<p><strong>${reference}:</strong> ${content}</p>`;
-                    }
-                    responseDiv.innerHTML = formattedResponse;
+                    responseDiv.innerHTML = `<h3>Svar:</h3><p>${data.answer}</p>`;
                 } else {
                     responseDiv.style.display = "block";
                     responseDiv.innerHTML = `<p>Feil: ${response.status}</p>`;
@@ -124,27 +118,19 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# Fuzzy search and categorize function
-def search_and_categorize(query, database):
-    results = {}
-    for entry in database:
-        try:
-            score = process.extractOne(query, [entry["content"]])
-            if score and score[1] > 70:  # Match threshold
-                reference = f"{entry.get('source', 'Ukjent')} §{entry.get('paragraph', 'Ukjent')}"
-                if entry["type"] == "guidance":
-                    reference += " (Veiledning)"
-                if reference not in results:
-                    results[reference] = ""
-                results[reference] += entry["content"][:200] + "...\n"
-        except UnicodeEncodeError as e:
-            logging.error(f"Encoding error: {e}")
-            continue
-    if not results:
-        logging.info("No results found.")
-        return {"categorized": {"Ingen": "Ingen relevante avsnitt ble funnet."}}
-
-    return {"categorized": results}
+# Function to query OpenAI GPT
+def query_gpt(prompt):
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=500,
+            temperature=0.7
+        )
+        return response.choices[0].text.strip()
+    except Exception as e:
+        logging.error(f"Error querying GPT: {e}")
+        return "En feil oppstod ved forespørselen til GPT."
 
 # Route for API requests
 @app.route('/ask', methods=["POST"])
@@ -158,9 +144,10 @@ def ask():
                 status=400
             )
 
-        response = search_and_categorize(query, database)
+        prompt = f"Bruker spør: {query}\nSvar basert på TEK17 og PBL på norsk:"
+        answer = query_gpt(prompt)
         return Response(
-            json.dumps(response, ensure_ascii=False),
+            json.dumps({"answer": answer}, ensure_ascii=False),
             content_type="application/json"
         )
     except Exception as e:
