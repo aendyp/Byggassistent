@@ -2,6 +2,7 @@ from flask import Flask, request, Response, render_template_string
 import openai
 import os
 import logging
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
