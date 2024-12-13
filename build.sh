@@ -9,6 +9,14 @@ pip install -r requirements.txt
 # Last ned spaCy-modellen for norsk
 python -m spacy download nb_core_news_sm --direct-download
 
-# Sjekk at modellen er lastet ned
+# Sjekk om modellen er lastet ned ved å liste innholdet i spacy/data
 echo "Verifiserer at modellen er lastet ned..."
 ls /usr/local/lib/python3.10/dist-packages/spacy/data/
+
+# Sjekk om modellen finnes i katalogen
+if [ -d "/usr/local/lib/python3.10/dist-packages/spacy/data/nb_core_news_sm" ]; then
+  echo "Modellen er lastet ned og funnet."
+else
+  echo "Modellen ble ikke funnet!"
+  exit 1
+fi
