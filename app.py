@@ -1,26 +1,16 @@
-import spacy
-import os
-import logging
 from flask import Flask, request, Response, render_template_string
+import json
+from rapidfuzz import process
+import logging
 
-# Sett opp logging
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# Bruk den spesifikke stien der modellen er plassert
-model_path = "/app/models/nb_core_news_sm"
-
-# Logg hvilken modellsti som brukes
-logging.info(f"Prøver å laste modellen fra: {model_path}")
-
-# Last inn modellen
-try:
-    nlp = spacy.load(model_path)
-    logging.info(f"Bruker spaCy-modellen fra sti: {model_path}")
-except IOError as e:
-    logging.error(f"Feil ved lasting av spaCy-modellen fra {model_path}: {e}")
-    raise e  # Raise error if model cannot be loaded
+# Load the TEK17 database
+with open("TEK17_database.json", "r", encoding="utf-8") as f:
+    database = json.load(f)
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
@@ -71,31 +61,15 @@ HTML_TEMPLATE = """
         button:hover {
             background: #0056b3;
         }
-        /* Chat container */
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
+        .response {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
-        /* User bubble */
-        .user-bubble {
-            background-color: #eee;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            align-self: flex-end;
-        }
-        /* Bot bubble */
-        .bot-bubble {
-            background-color: #007bff;
-            color: white;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            align-self: flex-start;
+        .response h3 {
+            margin-top: 0;
         }
     </style>
 </head>
@@ -104,25 +78,19 @@ HTML_TEMPLATE = """
         <h1>Byggassistent</h1>
     </header>
     <main>
-        <p>Skriv inn spørsmålet ditt om TEK17:</p>
-        <div class="chat-container" id="chat-container">
-            </div>
+        <p>Skriv inn spørsmålet ditt om TEK17, PBL eller andre standarder:</p>
         <form id="queryForm">
             <input type="text" id="query" name="query" placeholder="F.eks. Hva er krav til rømningsvei?" required>
             <button type="submit">Spør</button>
         </form>
+        <div id="response" class="response" style="display: none;"></div>
     </main>
     <script>
         document.getElementById("queryForm").addEventListener("submit", async function(event) {
             event.preventDefault();
             const query = document.getElementById("query").value;
-            const chatContainer = document.getElementById("chat-container");
-
-            // Display user's question
-            const userBubble = document.createElement("div");
-            userBubble.classList.add("user-bubble");
-            userBubble.textContent = query;
-            chatContainer.appendChild(userBubble);
+            const responseDiv = document.getElementById("response");
+            responseDiv.style.display = "none";
 
             try {
                 const response = await fetch("/ask", {
@@ -135,25 +103,20 @@ HTML_TEMPLATE = """
 
                 if (response.ok) {
                     const data = await response.json();
+                    responseDiv.style.display = "block";
 
-                    // Display bot's response
-                    const botBubble = document.createElement("div");
-                    botBubble.classList.add("bot-bubble");
-                    botBubble.innerHTML = `<h3>Svar:</h3><p><strong>Oppsummering:</strong> ${data.summary}</p><p><strong>Referanser:</strong> ${data.references}</p>`;
-                    chatContainer.appendChild(botBubble);
+                    let formattedResponse = "<h3>Svar:</h3>";
+                    for (const [reference, content] of Object.entries(data.categorized)) {
+                        formattedResponse += `<p><strong>${reference}:</strong> ${content}</p>`;
+                    }
+                    responseDiv.innerHTML = formattedResponse;
                 } else {
-                    // Display error message
-                    const botBubble = document.createElement("div");
-                    botBubble.classList.add("bot-bubble");
-                    botBubble.textContent = `Feil: ${response.status}`;
-                    chatContainer.appendChild(botBubble);
+                    responseDiv.style.display = "block";
+                    responseDiv.innerHTML = `<p>Feil: ${response.status}</p>`;
                 }
             } catch (error) {
-                // Display error message
-                const botBubble = document.createElement("div");
-                botBubble.classList.add("bot-bubble");
-                botBubble.textContent = `Feil: ${error.message}`;
-                chatContainer.appendChild(botBubble);
+                responseDiv.style.display = "block";
+                responseDiv.innerHTML = `<p>Feil: ${error.message}</p>`;
             }
         });
     </script>
@@ -161,55 +124,55 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def forbedret_sok(sporsmal, database):
-    doc = nlp(sporsmal)
-    nokkelord = [token.lemma_ for token in doc if not token.is_stop]
+# Fuzzy search and categorize function
+def search_and_categorize(query, database):
+    results = {}
+    for entry in database:
+        try:
+            score = process.extractOne(query, [entry["content"]])
+            if score and score[1] > 70:  # Match threshold
+                reference = f"{entry.get('source', 'Ukjent')} §{entry.get('paragraph', 'Ukjent')}"
+                if reference not in results:
+                    results[reference] = ""
+                results[reference] += entry["content"][:200] + "...\n"
+        except UnicodeEncodeError as e:
+            logging.error(f"Encoding error: {e}")
+            continue
+    if not results:
+        logging.info("No results found.")
+        return {"categorized": {"Ingen": "Ingen relevante avsnitt ble funnet."}}
 
-    resultater = []
-    for oppføring in database:
-        innhold = oppføring.get("content")
-        score = fuzz.partial_ratio(sporsmal.lower(), innhold.lower())
-        if score > 70:
-            resultater.append((oppføring, score))
+    return {"categorized": results}
 
-    # Sorter resultater basert på score
-    resultater = sorted(resultater, key=lambda x: x[1], reverse=True)
+# Route for API requests
+@app.route('/ask', methods=["POST"])
+def ask():
+    try:
+        query = request.json.get("query")
+        if not query:
+            return Response(
+                json.dumps({"error": "Ingen forespørsel mottatt."}, ensure_ascii=False),
+                content_type="application/json",
+                status=400
+            )
 
-    return resultater
+        response = search_and_categorize(query, database)
+        return Response(
+            json.dumps(response, ensure_ascii=False),
+            content_type="application/json"
+        )
+    except Exception as e:
+        logging.error(f"Error processing request: {e}")
+        return Response(
+            json.dumps({"error": "En feil oppstod på serveren."}, ensure_ascii=False),
+            content_type="application/json",
+            status=500
+        )
 
-def formater_svar(resultater):
-    svar = ""
-    referanser = []
-    for oppføring, score in resultater[:3]:
-        # Del innhold inn i avsnitt
-        avsnitt = oppføring['content'].split('\n')
-
-        svar += f"Side {oppføring['page']}:\n"
-        for avsnitt in avsnitt:
-            avsnitt = avsnitt.strip()
-            if avsnitt:
-                svar += f"{avsnitt}\n"
-
-    return svar, referanser
-
+# Route to serve the web interface
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/ask', methods=['POST'])
-def ask():
-    data = request.get_json()
-    query = data.get("query")
-
-    # Perform search in the database
-    resultater = forbedret_sok(query, database)
-    summary, references = formater_svar(resultater)
-
-    # Return the result as JSON
-    return Response(
-        json.dumps({"summary": summary, "references": references}),
-        mimetype="application/json"
-    )
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
