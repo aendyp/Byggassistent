@@ -1,16 +1,15 @@
 from flask import Flask, request, Response, render_template_string
-import openai
 import os
+import openai
 import logging
-import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-app = Flask(__name__)
-
-# Configure OpenAI API key from environment variable
+# Set up OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+app = Flask(__name__)
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
@@ -104,7 +103,10 @@ HTML_TEMPLATE = """
                 if (response.ok) {
                     const data = await response.json();
                     responseDiv.style.display = "block";
-                    responseDiv.innerHTML = `<h3>Svar:</h3><p>${data.answer}</p>`;
+
+                    let formattedResponse = "<h3>Svar:</h3>";
+                    formattedResponse += `<p>${data.answer}</p>`;
+                    responseDiv.innerHTML = formattedResponse;
                 } else {
                     responseDiv.style.display = "block";
                     responseDiv.innerHTML = `<p>Feil: ${response.status}</p>`;
@@ -119,12 +121,12 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# Function to query OpenAI GPT
+# GPT query function
 def query_gpt(prompt):
     try:
         logging.info(f"Sender forespørsel til GPT med prompt: {prompt}")
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # Endre modellen her om nødvendig
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Du er en hjelpsom assistent for byggrelaterte spørsmål."},
                 {"role": "user", "content": prompt}
@@ -133,7 +135,7 @@ def query_gpt(prompt):
             temperature=0.7
         )
         logging.info("Svar mottatt fra GPT.")
-        return response["choices"][0]["message"]["content"].strip()
+        return response['choices'][0]['message']['content'].strip()
     except Exception as e:
         logging.error(f"Feil ved forespørsel til GPT: {e}")
         return "En feil oppstod ved forespørselen til GPT."
@@ -150,8 +152,7 @@ def ask():
                 status=400
             )
 
-        prompt = f"Bruker spør: {query}\nSvar basert på TEK17 og PBL på norsk:"
-        answer = query_gpt(prompt)
+        answer = query_gpt(query)
         return Response(
             json.dumps({"answer": answer}, ensure_ascii=False),
             content_type="application/json"
@@ -159,7 +160,7 @@ def ask():
     except Exception as e:
         logging.error(f"Error processing request: {e}")
         return Response(
-            json.dumps({"error": "En feil oppstod på serveren."}, ensure_ascii=False),
+            json.dumps({"error": "En feil oppstod ved forespørselen til GPT."}, ensure_ascii=False),
             content_type="application/json",
             status=500
         )
