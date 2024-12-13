@@ -14,16 +14,8 @@ app = Flask(__name__)
 with open("TEK17_database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
 
-# Get the spaCy model path from environment variable, default to the model name
-model_path = os.getenv("SPACY_MODEL_PATH", "nb_core_news_sm")
-
-# Try to load the spaCy Norwegian language model from the specified path
-try:
-    nlp = spacy.load(model_path)
-    logging.info(f"Bruker spaCy-modellen fra sti: {model_path}")
-except IOError as e:
-    logging.error(f"Feil ved lasting av spaCy-modellen fra {model_path}: {e}")
-    raise e  # Raise error if model cannot be loaded
+# Load the spaCy Norwegian language model
+nlp = spacy.load("nb_core_news_sm")
 
 # HTML template for the web interface (Norwegian version)
 HTML_TEMPLATE = """
