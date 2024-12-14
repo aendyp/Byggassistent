@@ -1,11 +1,14 @@
 # Importer nødvendige biblioteker
 import os
 import logging
+from flask import Flask, render_template, request, jsonify
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
 from langchain.vectorstores import FAISS
 from langchain.embeddings import OpenAIEmbeddings
 from openai import OpenAI
+
+app = Flask(__name__)
 
 # Konfigurer logging
 logging.basicConfig(level=logging.INFO)
@@ -50,35 +53,36 @@ def setup_qa_system(db, llm):
         logger.error(f"Feil under oppsett av Q&A-system: {e}")
         raise
 
-# Hovedfunksjon for spørringer
-def main():
+# Initialiser Q&A-systemer
+docs_tek17, docs_pbl = load_documents()
+embeddings = OpenAIEmbeddings()
+db_tek17 = create_vector_store(docs_tek17, embeddings)
+db_pbl = create_vector_store(docs_pbl, embeddings)
+llm = setup_openai_client()
+qa_tek17 = setup_qa_system(db_tek17, llm)
+qa_pbl = setup_qa_system(db_pbl, llm)
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/query", methods=["POST"])
+def query():
+    user_query = request.json.get("query")
+    if not user_query:
+        return jsonify({"error": "Ingen spørring gitt"}), 400
+
     try:
-        docs_tek17, docs_pbl = load_documents()
-
-        logger.info("Oppretter vektorbutikker...")
-        embeddings = OpenAIEmbeddings()
-        db_tek17 = create_vector_store(docs_tek17, embeddings)
-        db_pbl = create_vector_store(docs_pbl, embeddings)
-
-        logger.info("Setter opp Q&A-systemer...")
-        llm = setup_openai_client()
-        qa_tek17 = setup_qa_system(db_tek17, llm)
-        qa_pbl = setup_qa_system(db_pbl, llm)
-
-        # Eksempelspørsmål
-        query = "Hva er kravene til rømning ved brann i boliger?"
-        logger.info(f"Spørsmål: {query}")
-
-        response_tek17 = qa_tek17.run(query)
-        response_pbl = qa_pbl.run(query)
-
-        logger.info("\nSvar fra TEK17:")
-        logger.info(response_tek17)
-
-        logger.info("\nSvar fra PBL:")
-        logger.info(response_pbl)
+        response_tek17 = qa_tek17.run(user_query)
+        response_pbl = qa_pbl.run(user_query)
+        return jsonify({
+            "query": user_query,
+            "response_tek17": response_tek17,
+            "response_pbl": response_pbl
+        })
     except Exception as e:
-        logger.error(f"En feil oppstod under kjøring: {e}")
+        logger.error(f"En feil oppstod under behandling av spørringen: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=5000)
