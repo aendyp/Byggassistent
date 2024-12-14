@@ -1,7 +1,7 @@
 # Importer nødvendige biblioteker
 import os
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
 from langchain.vectorstores import FAISS
@@ -64,7 +64,62 @@ qa_pbl = setup_qa_system(db_pbl, llm)
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Byggassistent</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 2rem; }
+            .container { max-width: 600px; margin: 0 auto; }
+            textarea { width: 100%; height: 100px; margin-bottom: 1rem; }
+            button { padding: 0.5rem 1rem; background-color: #007BFF; color: white; border: none; cursor: pointer; }
+            button:hover { background-color: #0056b3; }
+            .response { margin-top: 1rem; padding: 1rem; background-color: #f1f1f1; border: 1px solid #ddd; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Byggassistent</h1>
+            <p>Stille et spørsmål relatert til TEK17 eller PBL, og få svar!</p>
+            <textarea id="query" placeholder="Skriv spørsmålet ditt her..."></textarea>
+            <button onclick="sendQuery()">Send</button>
+            <div id="response" class="response" style="display: none;"></div>
+        </div>
+        <script>
+            async function sendQuery() {
+                const query = document.getElementById('query').value;
+                if (!query) {
+                    alert('Vennligst skriv et spørsmål.');
+                    return;
+                }
+                const responseDiv = document.getElementById('response');
+                responseDiv.style.display = 'none';
+                try {
+                    const response = await fetch('/query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query }),
+                    });
+                    const data = await response.json();
+                    if (data.error) {
+                        responseDiv.textContent = 'Error: ' + data.error;
+                    } else {
+                        responseDiv.innerHTML = `<strong>Spørsmål:</strong> ${data.query}<br>
+                                                 <strong>Svar fra TEK17:</strong> ${data.response_tek17}<br>
+                                                 <strong>Svar fra PBL:</strong> ${data.response_pbl}`;
+                    }
+                } catch (err) {
+                    responseDiv.textContent = 'En feil oppstod: ' + err.message;
+                }
+                responseDiv.style.display = 'block';
+            }
+        </script>
+    </body>
+    </html>
+    """
 
 @app.route("/query", methods=["POST"])
 def query():
