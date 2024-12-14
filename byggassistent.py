@@ -4,7 +4,7 @@ import logging
 from flask import Flask, request, jsonify
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain_openai.embeddings import OpenAIEmbeddings
 from openai import OpenAI
 
@@ -141,4 +141,5 @@ def query():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Standard til 5000 hvis PORT ikke er satt
+    logger.info(f"Starter serveren på host 0.0.0.0 og port {port}")
     app.run(host="0.0.0.0", port=port)
