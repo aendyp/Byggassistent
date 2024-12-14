@@ -28,9 +28,47 @@ def load_documents():
         logger.info("Laster inn dokumenter...")
         loader_tek17 = PyPDFLoader("TEK17.pdf")
         loader_pbl = PyPDFLoader("PBL.pdf")
+        loader_aml = PyPDFLoader("AML.pdf")
+        loader_sak10 = PyPDFLoader("SAK10.pdf")
+        loader_dok = PyPDFLoader("DOK.pdf")
+        loader_bhf = PyPDFLoader("BHF.pdf")
+        loader_breeam = PyPDFLoader("BREEAM-NOR-v6.1.1.pdf")
+        loader_avfall = PyPDFLoader("Avfallsforskriften.pdf")
+        loader_byggherre = PyPDFLoader("Byggherreforskriften.pdf")
+        loader_internkontroll = PyPDFLoader("Internkontrollforskriften.pdf")
+        loader_forurensning = PyPDFLoader("Forurensningsloven.pdf")
+        loader_arbeidsplass = PyPDFLoader("Arbeidsplassforskriften.pdf")
+        loader_arbeid = PyPDFLoader("Forskrift_om_utførelse_av_arbeid.pdf")
+
         docs_tek17 = loader_tek17.load_and_split()
         docs_pbl = loader_pbl.load_and_split()
-        return docs_tek17, docs_pbl
+        docs_aml = loader_aml.load_and_split()
+        docs_sak10 = loader_sak10.load_and_split()
+        docs_dok = loader_dok.load_and_split()
+        docs_bhf = loader_bhf.load_and_split()
+        docs_breeam = loader_breeam.load_and_split()
+        docs_avfall = loader_avfall.load_and_split()
+        docs_byggherre = loader_byggherre.load_and_split()
+        docs_internkontroll = loader_internkontroll.load_and_split()
+        docs_forurensning = loader_forurensning.load_and_split()
+        docs_arbeidsplass = loader_arbeidsplass.load_and_split()
+        docs_arbeid = loader_arbeid.load_and_split()
+
+        return {
+            "TEK17": docs_tek17,
+            "PBL": docs_pbl,
+            "AML": docs_aml,
+            "SAK10": docs_sak10,
+            "DOK": docs_dok,
+            "BHF": docs_bhf,
+            "BREEAM": docs_breeam,
+            "Avfall": docs_avfall,
+            "Byggherre": docs_byggherre,
+            "Internkontroll": docs_internkontroll,
+            "Forurensning": docs_forurensning,
+            "Arbeidsplass": docs_arbeidsplass,
+            "Arbeid": docs_arbeid
+        }
     except Exception as e:
         logger.error(f"Feil under lasting av dokumenter: {e}")
         raise
@@ -54,13 +92,11 @@ def setup_conversational_chain(db, llm):
         raise
 
 # Initialiser Q&A-systemer
-docs_tek17, docs_pbl = load_documents()
+documents = load_documents()
 embeddings = OpenAIEmbeddings()
-db_tek17 = create_vector_store(docs_tek17, embeddings)
-db_pbl = create_vector_store(docs_pbl, embeddings)
+vector_stores = {name: create_vector_store(docs, embeddings) for name, docs in documents.items()}
 llm = setup_openai_client()
-qa_tek17 = setup_conversational_chain(db_tek17, llm)
-qa_pbl = setup_conversational_chain(db_pbl, llm)
+qa_systems = {name: setup_conversational_chain(db, llm) for name, db in vector_stores.items()}
 
 # Opprett en samtalelog
 conversation_history = []
@@ -86,7 +122,7 @@ def home():
     <body>
         <div class="container">
             <h1>Byggassistent</h1>
-            <p>Stille et spørsmål relatert til TEK17 eller PBL, og få svar!</p>
+            <p>Stille et spørsmål relatert til byggetekniske forskrifter, lover og standarder, og få svar!</p>
             <textarea id="query" placeholder="Skriv spørsmålet ditt her..."></textarea>
             <button onclick="sendQuery()">Send</button>
             <div id="response" class="response"></div>
@@ -105,6 +141,9 @@ def home():
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query }),
                     });
+                    if (!response.ok) {
+                        throw new Error(`HTTP-feil! Status: ${response.status}`);
+                    }
                     const data = await response.json();
                     if (data.error) {
                         responseDiv.innerHTML += `<div>Error: ${data.error}</div>`;
@@ -133,20 +172,11 @@ def query():
     conversation_history.append({"role": "user", "content": user_query})
 
     try:
-        response_tek17 = qa_tek17.run({"query": user_query, "chat_history": conversation_history})
-        conversation_history.append({"role": "assistant", "content": response_tek17})
-        return jsonify({
-            "query": user_query,
-            "response": response_tek17
-        })
-    except openai.error.RateLimitError:
-        logger.error("API-kvoten er brukt opp. Vennligst sjekk OpenAI-kontoen.")
-        return jsonify({"error": "API-kvoten er brukt opp. Kontakt administrator."}), 429
-    except Exception as e:
-        logger.error(f"En feil oppstod under behandling av spørringen: {e}")
-        return jsonify({"error": str(e)}), 500
+        # Velg relevant Q&A-system basert på spørsmålet
+        responses = {}
+        for name, qa_system in qa_systems.items():
+            responses[name] = qa_system.run({"query": user_query, "chat_history": conversation_history})
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Standard til 5000 hvis PORT ikke er satt
-    logger.info(f"Starter serveren på host 0.0.0.0 og port {port}")
-    app.run(host="0.0.0.0", port=port)
+        conversation_history.append({"role": "assistant", "content": responses})
+        return jsonify({
+            "query": user
