@@ -135,6 +135,9 @@ def query():
             "response_tek17": response_tek17,
             "response_pbl": response_pbl
         })
+    except openai.error.RateLimitError:
+        logger.error("API-kvoten er brukt opp. Vennligst sjekk OpenAI-kontoen.")
+        return jsonify({"error": "API-kvoten er brukt opp. Kontakt administrator."}), 429
     except Exception as e:
         logger.error(f"En feil oppstod under behandling av spørringen: {e}")
         return jsonify({"error": str(e)}), 500
