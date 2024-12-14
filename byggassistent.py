@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
 from langchain.vectorstores import FAISS
-from langchain_openai.embeddings import OpenAIEmbeddings
+from langchain.embeddings import OpenAIEmbeddings
 from openai import OpenAI
 
 app = Flask(__name__)
