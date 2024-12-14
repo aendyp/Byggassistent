@@ -3,7 +3,7 @@ import os
 import logging
 from flask import Flask, request, jsonify
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.chains import RetrievalQA
+from langchain.chains import ConversationalRetrievalChain
 from langchain_community.vectorstores import FAISS
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
@@ -44,11 +44,11 @@ def create_vector_store(docs, embeddings):
         logger.error(f"Feil under oppretting av vektorbutikk: {e}")
         raise
 
-# Sett opp et Q&A-system
-def setup_qa_system(db, llm):
+# Sett opp et samtalebasert Q&A-system
+def setup_conversational_chain(db, llm):
     try:
-        logger.info("Setter opp Q&A-system...")
-        return RetrievalQA.from_chain_type(llm=llm, retriever=db.as_retriever())
+        logger.info("Setter opp samtalebasert Q&A-system...")
+        return ConversationalRetrievalChain.from_llm(llm=llm, retriever=db.as_retriever(), return_source_documents=False)
     except Exception as e:
         logger.error(f"Feil under oppsett av Q&A-system: {e}")
         raise
@@ -59,8 +59,11 @@ embeddings = OpenAIEmbeddings()
 db_tek17 = create_vector_store(docs_tek17, embeddings)
 db_pbl = create_vector_store(docs_pbl, embeddings)
 llm = setup_openai_client()
-qa_tek17 = setup_qa_system(db_tek17, llm)
-qa_pbl = setup_qa_system(db_pbl, llm)
+qa_tek17 = setup_conversational_chain(db_tek17, llm)
+qa_pbl = setup_conversational_chain(db_pbl, llm)
+
+# Opprett en samtalelog
+conversation_history = []
 
 @app.route("/")
 def home():
@@ -86,7 +89,7 @@ def home():
             <p>Stille et spørsmål relatert til TEK17 eller PBL, og få svar!</p>
             <textarea id="query" placeholder="Skriv spørsmålet ditt her..."></textarea>
             <button onclick="sendQuery()">Send</button>
-            <div id="response" class="response" style="display: none;"></div>
+            <div id="response" class="response"></div>
         </div>
         <script>
             async function sendQuery() {
@@ -96,7 +99,6 @@ def home():
                     return;
                 }
                 const responseDiv = document.getElementById('response');
-                responseDiv.style.display = 'none';
                 try {
                     const response = await fetch('/query', {
                         method: 'POST',
@@ -105,16 +107,15 @@ def home():
                     });
                     const data = await response.json();
                     if (data.error) {
-                        responseDiv.textContent = 'Error: ' + data.error;
+                        responseDiv.innerHTML += `<div>Error: ${data.error}</div>`;
                     } else {
-                        responseDiv.innerHTML = `<strong>Spørsmål:</strong> ${data.query}<br>
-                                                 <strong>Svar fra TEK17:</strong> ${data.response_tek17}<br>
-                                                 <strong>Svar fra PBL:</strong> ${data.response_pbl}`;
+                        responseDiv.innerHTML += `<div><strong>Du:</strong> ${data.query}</div>`;
+                        responseDiv.innerHTML += `<div><strong>Byggassistent:</strong> ${data.response}</div>`;
                     }
                 } catch (err) {
-                    responseDiv.textContent = 'En feil oppstod: ' + err.message;
+                    responseDiv.innerHTML += `<div>En feil oppstod: ${err.message}</div>`;
                 }
-                responseDiv.style.display = 'block';
+                responseDiv.scrollTop = responseDiv.scrollHeight;
             }
         </script>
     </body>
@@ -127,13 +128,16 @@ def query():
     if not user_query:
         return jsonify({"error": "Ingen spørring gitt"}), 400
 
+    global conversation_history
+
+    conversation_history.append({"role": "user", "content": user_query})
+
     try:
-        response_tek17 = qa_tek17.run(user_query)
-        response_pbl = qa_pbl.run(user_query)
+        response_tek17 = qa_tek17.run({"query": user_query, "chat_history": conversation_history})
+        conversation_history.append({"role": "assistant", "content": response_tek17})
         return jsonify({
             "query": user_query,
-            "response_tek17": response_tek17,
-            "response_pbl": response_pbl
+            "response": response_tek17
         })
     except openai.error.RateLimitError:
         logger.error("API-kvoten er brukt opp. Vennligst sjekk OpenAI-kontoen.")
