@@ -32,6 +32,7 @@ def home():
         return "Feil ved lasting av siden.", 500
 
 
+
 @app.route("/query", methods=["POST"])
 def query():
     user_query = request.json.get("query")
@@ -46,18 +47,25 @@ def query():
         # Velg relevant Q&A-system basert på spørsmålet
         responses = {}
         for name, qa_system in qa_systems.items():
-            response = qa_system.invoke({
-                "input": user_query,
-                "chat_history": conversation_history
-            })
-            responses[name] = response
+            result = qa_system.run({"query": user_query, "chat_history": conversation_history})
+            # Konverter dokumenter til JSON-vennlig format hvis de finnes
+            if isinstance(result, list):  # Hvis resultatet er en liste av dokumenter
+                responses[name] = [
+                    {
+                        "page_content": doc.page_content,
+                        "metadata": doc.metadata
+                    }
+                    for doc in result
+                ]
+            else:
+                responses[name] = result
 
-        # Legg til responsene fra assistenten
         conversation_history.append({"role": "assistant", "content": responses})
         return jsonify({"responses": responses})
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == "__main__":
