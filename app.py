@@ -47,7 +47,7 @@ def query():
         # Velg relevant Q&A-system basert på spørsmålet
         responses = {}
         for name, qa_system in qa_systems.items():
-            result = qa_system.run({"query": user_query, "chat_history": conversation_history})
+            result = qa_system.invoke({"query": user_query, "chat_history": conversation_history})
             # Konverter dokumenter til JSON-vennlig format hvis de finnes
             if isinstance(result, list):  # Hvis resultatet er en liste av dokumenter
                 responses[name] = [
@@ -65,6 +65,7 @@ def query():
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 
