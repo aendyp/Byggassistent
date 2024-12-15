@@ -41,20 +41,21 @@ def query():
 
     global conversation_history
 
+    # Legg til brukerens forespørsel i samtalelogg
     conversation_history.append({"role": "user", "content": user_query})
 
     try:
         responses = {}
         for name, qa_system in qa_systems.items():
-            # Kombiner samtalelogg og spørsmål til én tekst
+            # Kombiner samtalelogg og spørring til én tekststreng
             combined_input = "\n".join(
-                [f"Bruker: {entry['content']}" for entry in conversation_history]
+                [f"{entry['role'].capitalize()}: {entry['content']}" for entry in conversation_history]
             )
 
-            # Kjør kjeden
+            # Kjør kjeden med den kombinerte inputen
             result = qa_system.invoke({"input": combined_input})
             
-            # JSON-serialisering
+            # Håndter resultatet (JSON-serialisering)
             if isinstance(result, list):
                 responses[name] = [
                     {
@@ -66,12 +67,12 @@ def query():
             else:
                 responses[name] = result
 
+        # Legg til assistentens svar i samtalelogg
         conversation_history.append({"role": "assistant", "content": responses})
         return jsonify({"responses": responses})
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 
 
