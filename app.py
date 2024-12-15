@@ -59,5 +59,6 @@ def query():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000)) # Renders standardport
+    port = int(os.environ.get("PORT", 10000))  # Renders standardport
+    print(f"Starter applikasjonen på port {port}...")
     app.run(host="0.0.0.0", port=port)
