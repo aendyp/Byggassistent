@@ -1,5 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+import os
 import logging
+from flask import Flask, request, jsonify, render_template
+from langchain_community.chat_models import ChatOpenAI
 from utils.document_utils import load_documents
 from utils.qa_utils import setup_openai_client, setup_conversational_chain, create_vector_store
 
@@ -8,13 +10,14 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialiser Q&A-systemer
+# Last inn dokumenter og sett opp systemer
 documents = load_documents()
 embeddings = setup_openai_client().embeddings
 vector_stores = {name: create_vector_store(docs, embeddings) for name, docs in documents.items()}
 llm = setup_openai_client().llm
 qa_systems = {name: setup_conversational_chain(db, llm) for name, db in vector_stores.items()}
 
+# Samtalehistorikk
 conversation_history = []
 
 @app.route("/")
@@ -28,6 +31,7 @@ def query():
         return jsonify({"error": "Ingen spørring gitt"}), 400
 
     global conversation_history
+
     conversation_history.append({"role": "user", "content": user_query})
 
     try:
@@ -42,4 +46,5 @@ def query():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
