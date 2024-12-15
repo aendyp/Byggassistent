@@ -42,8 +42,8 @@
                 if (data.error) {
                     responseDiv.innerHTML += `<div>Error: ${data.error}</div>`;
                 } else {
-                    responseDiv.innerHTML += `<div><strong>Du:</strong> ${query}</div>`;
-                    responseDiv.innerHTML += `<div><strong>Byggassistent:</strong> ${JSON.stringify(data.responses)}</div>`;
+                    responseDiv.innerHTML += `<div><strong>Du:</strong> ${data.query}</div>`;
+                    responseDiv.innerHTML += `<div><strong>Byggassistent:</strong> ${data.responses}</div>`;
                 }
             } catch (err) {
                 responseDiv.innerHTML += `<div>En feil oppstod: ${err.message}</div>`;
