@@ -23,4 +23,33 @@
     </div>
     <script>
         async function sendQuery() {
-            const 
+            const query = document.getElementById('query').value;
+            if (!query) {
+                alert('Vennligst skriv et spørsmål.');
+                return;
+            }
+            const responseDiv = document.getElementById('response');
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query }),
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP-feil! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    responseDiv.innerHTML += `<div>Error: ${data.error}</div>`;
+                } else {
+                    responseDiv.innerHTML += `<div><strong>Du:</strong> ${query}</div>`;
+                    responseDiv.innerHTML += `<div><strong>Byggassistent:</strong> ${JSON.stringify(data.responses)}</div>`;
+                }
+            } catch (err) {
+                responseDiv.innerHTML += `<div>En feil oppstod: ${err.message}</div>`;
+            }
+            responseDiv.scrollTop = responseDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
