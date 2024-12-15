@@ -21,9 +21,16 @@ qa_systems = {name: setup_conversational_chain(db, llm) for name, db in vector_s
 # Opprett en samtalelog
 conversation_history = []
 
+from flask import render_template
+
 @app.route("/")
 def home():
-    return open("static/index.html").read()
+    try:
+        return render_template("index.html")  # Endrer fra å lese fil direkte til render_template
+    except Exception as e:
+        logger.error(f"Feil ved lasting av index.html: {e}")
+        return "Feil ved lasting av siden.", 500
+
 
 @app.route("/query", methods=["POST"])
 def query():
