@@ -1,8 +1,8 @@
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
+from langchain_community.vectorstores import FAISS
+from langchain_community.chat_models import ChatOpenAI
+from langchain_openai.embeddings import OpenAIEmbeddings
 import os
 import logging
 
@@ -31,20 +31,19 @@ def setup_conversational_chain(vectorstore, llm):
     try:
         logger.info("Setter opp History-Aware Retrieval Chain.")
         
-        # Bruk en PromptTemplate for omformulering
-        rephrase_prompt = PromptTemplate(
+        # Definer en BasePromptTemplate for History-Aware Retriever
+        prompt_template = PromptTemplate(
             input_variables=["query"],
-            template="Omformuler følgende spørring for kontekstbasert gjenfinning: {query}"
+            template="Brukerens spørring: {query}"
         )
-        
-        retriever = vectorstore.as_retriever()
         
         # Opprett History-Aware Retriever
         history_aware_retriever = create_history_aware_retriever(
             llm=llm,
-            retriever=retriever,
-            prompt=rephrase_prompt
+            retriever=vectorstore.as_retriever(),
+            prompt=prompt_template
         )
+
         return history_aware_retriever
     except Exception as e:
         logger.error(f"Feil under oppsett av History-Aware Retrieval Chain: {e}")
