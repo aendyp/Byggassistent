@@ -1,7 +1,7 @@
-from langchain.chains import ConversationalRetrievalChain  # Rettet import
+from langchain.chains import ConversationalRetrievalChain
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai.embeddings import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
 import os
 import logging
 
@@ -20,10 +20,24 @@ def setup_openai_client():
     return OpenAIClient()
 
 def create_vector_store(docs, embeddings):
-    return FAISS.from_documents(docs, embeddings)
+    try:
+        logger.info("Oppretter vektorbutikk...")
+        vector_store = FAISS.from_documents(docs, embeddings)
+        logger.info("Vektorbutikk opprettet!")
+        return vector_store
+    except Exception as e:
+        logger.error(f"Feil under opprettelse av vektorbutikk: {e}")
+        raise
 
 def setup_conversational_chain(vector_store, llm):
-    return ConversationalRetrievalChain.from_chain_type(
-        llm=llm,
-        retriever=vector_store.as_retriever()
-    )
+    try:
+        logger.info("Setter opp Conversational Retrieval Chain...")
+        conversational_chain = ConversationalRetrievalChain(
+            retriever=vector_store.as_retriever(),
+            llm=llm
+        )
+        logger.info("Conversational Retrieval Chain satt opp!")
+        return conversational_chain
+    except Exception as e:
+        logger.error(f"Feil under oppsett av conversational chain: {e}")
+        raise
