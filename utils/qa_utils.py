@@ -1,4 +1,5 @@
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import create_retrieval_chain
+from langchain.retrievers.history_aware import create_history_aware_retriever
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.chat_models import ChatOpenAI
@@ -13,20 +14,14 @@ class OpenAIClient:
         if not api_key:
             logger.error("API-nøkkel mangler! Sett OPENAI_API_KEY som miljøvariabel.")
             raise ValueError("API-nøkkel mangler! Sett OPENAI_API_KEY som miljøvariabel.")
-        logger.info("Initialiserer OpenAI-klient med gitt API-nøkkel.")
-        try:
-            self.llm = ChatOpenAI(openai_api_key=api_key, temperature=0)
-            self.embeddings = OpenAIEmbeddings()
-        except Exception as e:
-            logger.error(f"Feil under opprettelse av OpenAI-klient: {e}")
-            raise
+        self.llm = ChatOpenAI(openai_api_key=api_key, temperature=0)
+        self.embeddings = OpenAIEmbeddings()
 
 def setup_openai_client():
     return OpenAIClient()
 
 def create_vector_store(docs, embeddings):
     try:
-        logger.info("Oppretter FAISS-vector store.")
         return FAISS.from_documents(docs, embeddings)
     except Exception as e:
         logger.error(f"Feil under opprettelse av vector store: {e}")
@@ -34,11 +29,21 @@ def create_vector_store(docs, embeddings):
 
 def setup_conversational_chain(vectorstore, llm):
     try:
-        logger.info("Setter opp Conversational Retrieval Chain.")
-        return ConversationalRetrievalChain(
+        logger.info("Setter opp History Aware Retriever og Retrieval Chain.")
+        
+        # Opprett History Aware Retriever
+        retriever = create_history_aware_retriever(
             retriever=vectorstore.as_retriever(),
+            max_history=5  # Antall meldinger i historikken som skal huskes
+        )
+        
+        # Opprett Retrieval Chain
+        chain = create_retrieval_chain(
+            retriever=retriever,
             llm=llm
         )
+        
+        return chain
     except Exception as e:
-        logger.error(f"Feil under oppsett av Conversational Chain: {e}")
+        logger.error(f"Feil under oppsett av Retrieval Chain: {e}")
         raise
