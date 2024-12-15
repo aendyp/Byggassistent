@@ -31,10 +31,10 @@ def setup_conversational_chain(vectorstore, llm):
     try:
         logger.info("Setter opp History-Aware Retrieval Chain.")
         
-        # Definer en BasePromptTemplate for History-Aware Retriever
+        # Oppdater PromptTemplate for riktig inputvariabel
         prompt_template = PromptTemplate(
-            input_variables=["query"],
-            template="Brukerens spørring: {query}"
+            input_variables=["input"],  # Endret fra "query" til "input"
+            template="Brukerens spørring: {input}"
         )
         
         # Opprett History-Aware Retriever
