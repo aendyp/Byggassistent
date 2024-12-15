@@ -54,5 +54,5 @@ def query():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 80)) # Sett standardport til 80
+    port = int(os.environ.get("PORT", 10000)) # Renders standardport
     app.run(host="0.0.0.0", port=port)
