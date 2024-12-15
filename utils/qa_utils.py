@@ -35,10 +35,9 @@ def create_vector_store(docs, embeddings):
 def setup_conversational_chain(vectorstore, llm):
     try:
         logger.info("Setter opp Conversational Retrieval Chain.")
-        return ConversationalRetrievalChain.from_chain_type(
-            llm=llm,
+        return ConversationalRetrievalChain(
             retriever=vectorstore.as_retriever(),
-            chain_type="stuff"
+            llm=llm
         )
     except Exception as e:
         logger.error(f"Feil under oppsett av Conversational Chain: {e}")
