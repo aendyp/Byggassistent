@@ -32,25 +32,30 @@ def query():
 
     global conversation_history
 
-    # Legg til brukerens spørsmål i samtalehistorikken
+    # Legg til brukerens spørring
     conversation_history.append({"role": "user", "content": user_query})
 
+    # Konverter samtalelogg til riktig format
+    formatted_history = [
+        (msg["content"], conversation_history[i + 1]["content"])
+        for i, msg in enumerate(conversation_history[:-1])
+        if msg["role"] == "user" and i + 1 < len(conversation_history)
+    ]
+
     try:
+        # Velg relevant Q&A-system basert på spørsmålet
         responses = {}
         for name, qa_system in qa_systems.items():
-            # Sørg for at samtalehistorikken er korrekt formatert
-            formatted_history = [
-                {"role": msg["role"], "content": msg["content"]}
-                for msg in conversation_history
-            ]
-            responses[name] = qa_system.run({"question": user_query, "chat_history": formatted_history})
+            responses[name] = qa_system.run({"query": user_query, "chat_history": formatted_history})
 
-        # Legg til assistentens svar i samtalehistorikken
+        # Legg til botens svar i samtalelogg
         conversation_history.append({"role": "assistant", "content": responses})
+
         return jsonify({"responses": responses})
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == "__main__":
