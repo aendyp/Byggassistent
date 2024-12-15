@@ -1,7 +1,7 @@
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_openai.embeddings import OpenAIEmbeddings
 import os
 import logging
