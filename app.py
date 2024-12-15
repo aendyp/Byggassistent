@@ -44,12 +44,18 @@ def query():
     conversation_history.append({"role": "user", "content": user_query})
 
     try:
-        # Velg relevant Q&A-system basert på spørsmålet
         responses = {}
         for name, qa_system in qa_systems.items():
-            result = qa_system.invoke({"query": user_query, "chat_history": conversation_history})
-            # Konverter dokumenter til JSON-vennlig format hvis de finnes
-            if isinstance(result, list):  # Hvis resultatet er en liste av dokumenter
+            # Kombiner samtalelogg og spørsmål til én tekst
+            combined_input = "\n".join(
+                [f"Bruker: {entry['content']}" for entry in conversation_history]
+            )
+
+            # Kjør kjeden
+            result = qa_system.invoke({"input": combined_input})
+            
+            # JSON-serialisering
+            if isinstance(result, list):
                 responses[name] = [
                     {
                         "page_content": doc.page_content,
@@ -65,6 +71,7 @@ def query():
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 
