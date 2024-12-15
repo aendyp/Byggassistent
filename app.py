@@ -33,7 +33,7 @@ def query():
     try:
         responses = {}
         for name, qa_system in qa_systems.items():
-            responses[name] = qa_system.run({"query": user_query, "chat_history": conversation_history})
+            responses[name] = qa_system.run({"question": user_query, "chat_history": conversation_history})
 
         conversation_history.append({"role": "assistant", "content": responses})
         return jsonify({"responses": responses})
