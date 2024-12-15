@@ -36,15 +36,22 @@ def query():
     conversation_history.append({"role": "user", "content": user_query})
 
     try:
+        # Velg relevant Q&A-system basert på spørsmålet
         responses = {}
         for name, qa_system in qa_systems.items():
-            responses[name] = qa_system.run({"question": user_query, "chat_history": conversation_history})
+            response = qa_system.invoke({
+                "input": user_query,
+                "chat_history": conversation_history
+            })
+            responses[name] = response
 
+        # Legg til responsene fra assistenten
         conversation_history.append({"role": "assistant", "content": responses})
         return jsonify({"responses": responses})
     except Exception as e:
         logger.error(f"Feil under spørring: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
