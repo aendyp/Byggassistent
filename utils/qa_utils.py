@@ -29,18 +29,23 @@ def create_vector_store(docs, embeddings):
 
 def setup_prompt():
     return PromptTemplate(
-        input_variables=["input"],  # Forvent én samlet tekst som input
-        template=(
-            "Samtalelogg og spørring:\n{input}\n\n"
-            "Svar på brukerens forespørsel basert på ovennevnte."
-        )
+        input_variables=["input", "chat_history"],  # Forvent både input og chat_history
+        template="""
+        Du er en ekspert på byggtekniske forskrifter, lover og standarder. Når du svarer:
+        - Svar kort og presist.
+        - Inkluder bare kilder som er relevante for spørsmålet.
+        - Hvis spørsmålet er uklart, be brukeren om en presisering.
+
+        Brukerens spørsmål: {input}
+        Samtaleloggen: {chat_history}
+        """
     )
 
 def setup_conversational_chain(vectorstore, llm):
     try:
         logger.info("Setter opp History-Aware Retrieval Chain...")
-        prompt = setup_prompt()
-        
+        prompt = setup_prompt()  # Bruker prompt fra setup_prompt-funksjonen
+
         history_aware_retriever = create_history_aware_retriever(
             llm=llm,
             retriever=vectorstore.as_retriever(),
@@ -50,3 +55,4 @@ def setup_conversational_chain(vectorstore, llm):
     except Exception as e:
         logger.error(f"Feil under oppsett av History-Aware Retrieval Chain: {e}")
         raise
+
