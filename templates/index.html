@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Byggassistent</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .container { max-width: 600px; margin: 0 auto; }
+        textarea { width: 100%; height: 100px; margin-bottom: 1rem; }
+        button { padding: 0.5rem 1rem; background-color: #007BFF; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .response { margin-top: 1rem; padding: 1rem; background-color: #f1f1f1; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Byggassistent</h1>
+        <p>Stille et spørsmål relatert til byggetekniske forskrifter, lover og standarder, og få svar!</p>
+        <textarea id="query" placeholder="Skriv spørsmålet ditt her..."></textarea>
+        <button onclick="sendQuery()">Send</button>
+        <div id="response" class="response"></div>
+    </div>
+    <script>
+        async function sendQuery() {
+            const query = document.getElementById('query').value;
+            if (!query) {
+                alert('Vennligst skriv et spørsmål.');
+                return;
+            }
+            const responseDiv = document.getElementById('response');
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query }),
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP-feil! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    responseDiv.innerHTML += `<div>Error: ${data.error}</div>`;
+                } else {
+                    responseDiv.innerHTML += `<div><strong>Du:</strong> ${data.query}</div>`;
+                    responseDiv.innerHTML += `<div><strong>Byggassistent:</strong> ${data.responses}</div>`;
+                }
+            } catch (err) {
+                responseDiv.innerHTML += `<div>En feil oppstod: ${err.message}</div>`;
+            }
+            responseDiv.scrollTop = responseDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
