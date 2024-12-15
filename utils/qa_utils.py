@@ -20,6 +20,13 @@ class OpenAIClient:
 def setup_openai_client():
     return OpenAIClient()
 
+def setup_prompt():
+    # Oppdaterer PromptTemplate til å inkludere både query og chat_history
+    return PromptTemplate(
+        input_variables=["query", "chat_history"],
+        template="Brukerforespørsel: {query}\nSamtalelogg: {chat_history}"
+    )
+
 def create_vector_store(docs, embeddings):
     try:
         return FAISS.from_documents(docs, embeddings)
@@ -29,21 +36,13 @@ def create_vector_store(docs, embeddings):
 
 def setup_conversational_chain(vectorstore, llm):
     try:
-        logger.info("Setter opp History-Aware Retrieval Chain.")
-        
-        # Oppdater PromptTemplate for riktig inputvariabel
-        prompt_template = PromptTemplate(
-            input_variables=["input"],  # Endret fra "query" til "input"
-            template="Brukerens spørring: {input}"
-        )
-        
-        # Opprett History-Aware Retriever
+        logger.info("Setter opp History-Aware Retrieval Chain...")
+        prompt = setup_prompt()
         history_aware_retriever = create_history_aware_retriever(
             llm=llm,
             retriever=vectorstore.as_retriever(),
-            prompt=prompt_template
+            prompt=prompt
         )
-
         return history_aware_retriever
     except Exception as e:
         logger.error(f"Feil under oppsett av History-Aware Retrieval Chain: {e}")
